@@ -1,7 +1,7 @@
 FROM ghcr.io/open-webui/open-webui:main
 USER root
-COPY config /opt/bootstrap/config
-COPY bootstrap.sh /opt/bootstrap/bootstrap.sh
-RUN chmod +x /opt/bootstrap/bootstrap.sh
+COPY bootstrap.sh /app/bootstrap/bootstrap.sh
+COPY sendemail_tool_env.py /app/bootstrap/sendemail_tool_env.py
+RUN chmod +x /app/bootstrap/bootstrap.sh
 EXPOSE 8080
-ENTRYPOINT ["/opt/bootstrap/bootstrap.sh"]
+ENTRYPOINT ["/app/bootstrap/bootstrap.sh"]
