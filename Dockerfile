@@ -1,4 +1,7 @@
 FROM ghcr.io/open-webui/open-webui:main
-
-# Open WebUI listens on 8080 by default, matching Cloud Run's default ingress port.
+USER root
+COPY config /opt/bootstrap/config
+COPY bootstrap.sh /opt/bootstrap/bootstrap.sh
+RUN chmod +x /opt/bootstrap/bootstrap.sh
 EXPOSE 8080
+ENTRYPOINT ["/opt/bootstrap/bootstrap.sh"]
