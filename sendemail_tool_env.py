@@ -110,7 +110,7 @@ class Tools:
 
             msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
-            msg["From"] = f"AMAIA Automated Mailer <{sender}>"
+            msg["From"] = f"MASDAN-DX Automated Mailer <{sender}>"
             msg["To"] = ", ".join(recipients)
 
             # Attach plain text first, HTML second.

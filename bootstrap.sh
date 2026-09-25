@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# Open WebUI bootstrapper:
+# 1. Starts Open WebUI
+# 2. Waits for the local API
+# 3. Signs in using WEBUI_ADMIN_EMAIL / WEBUI_ADMIN_PASSWORD
+# 4. Creates sendemail_tool_env.py as a Workspace Tool if it does not exist
+#
+# Assumes this script and sendemail_tool_env.py are copied into /app/bootstrap/
+# by the Dockerfile (or adjust BOOTSTRAP_DIR below).
+
 BASE_URL="${OPENWEBUI_BASE_URL:-http://127.0.0.1:${PORT:-8080}}"
 BOOTSTRAP_DIR="${BOOTSTRAP_DIR:-/app/bootstrap}"
 TOOL_FILE="${TOOL_FILE:-${BOOTSTRAP_DIR}/sendemail_tool_env.py}"
@@ -62,6 +71,7 @@ until curl -fsS "${BASE_URL}/health" >/dev/null 2>&1; do
 done
 log "Open WebUI is healthy."
 
+# Build the login JSON with Python so credentials are JSON-escaped correctly.
 AUTH_PAYLOAD="$(
     python - <<'PY'
 import json
@@ -82,6 +92,7 @@ AUTH_RESPONSE="$(
         --data-binary "$AUTH_PAYLOAD"
 )"
 
+# Never print AUTH_RESPONSE: it contains the JWT.
 TOKEN="$(
     printf '%s' "$AUTH_RESPONSE" | python -c '
 import json, sys
@@ -96,6 +107,10 @@ print(token)
 [ -n "$TOKEN" ] || die "Open WebUI signin returned no JWT."
 log "Authenticated successfully."
 
+# Idempotency: check whether the tool already exists.
+# 200 => leave it alone for this first bootstrap version.
+# 404 => create it.
+# anything else => fail rather than guessing.
 log "Checking for Workspace Tool '${TOOL_ID}'..."
 HTTP_STATUS="$(
     curl -sS -o /tmp/bootstrap-tool-check.json -w '%{http_code}' \
@@ -109,6 +124,10 @@ case "$HTTP_STATUS" in
         ;;
     404)
         log "Creating Workspace Tool '${TOOL_ID}'..."
+
+        # ToolForm currently requires:
+        #   id, name, content, meta, access_grants
+        # The Python source is embedded as JSON safely here.
         TOOL_PAYLOAD="$(
             TOOL_FILE="$TOOL_FILE" TOOL_ID="$TOOL_ID" TOOL_NAME="$TOOL_NAME" python - <<'PY'
 import json
@@ -158,9 +177,69 @@ PY
         ;;
 esac
 
-# Remove temp files and drop shell variables containing auth
-rm -f /tmp/bootstrap-tool-check.json /tmp/bootstrap-tool-create.json
-unset AUTH_PAYLOAD AUTH_RESPONSE TOKEN TOOL_PAYLOAD 2>/dev/null || true
+###############################################################################
+# Dani / MASDAN-DX model profile
+###############################################################################
+
+MODEL_FILE="${MODEL_FILE:-${BOOTSTRAP_DIR}/dani-masdan-dx.json}"
+[ -f "$MODEL_FILE" ] || die "Model JSON not found: $MODEL_FILE"
+
+log "Preparing model import from $(basename "$MODEL_FILE")..."
+
+# Open WebUI /api/v1/models/import expects {"models":[...]}.
+# Accept an export array, an already-wrapped object, or one model object.
+MODEL_PAYLOAD="$(
+    MODEL_FILE="$MODEL_FILE" python - <<'PY'
+import json
+import os
+from pathlib import Path
+
+path = Path(os.environ["MODEL_FILE"])
+data = json.loads(path.read_text(encoding="utf-8"))
+
+if isinstance(data, list):
+    models = data
+elif isinstance(data, dict) and isinstance(data.get("models"), list):
+    models = data["models"]
+elif isinstance(data, dict):
+    models = [data]
+else:
+    raise SystemExit("Unsupported model JSON shape.")
+
+if not models:
+    raise SystemExit("Model JSON contains no models.")
+
+print(json.dumps({"models": models}))
+PY
+)"
+
+log "Importing/upserting Dani/MASDAN-DX model profile..."
+MODEL_RESPONSE_FILE="/tmp/bootstrap-model-import.json"
+MODEL_STATUS="$(
+    curl -sS -o "$MODEL_RESPONSE_FILE" -w '%{http_code}' \
+        -X POST "${BASE_URL}/api/v1/models/import" \
+        -H "Authorization: Bearer ${TOKEN}" \
+        -H 'Content-Type: application/json' \
+        --data-binary "$MODEL_PAYLOAD"
+)"
+
+case "$MODEL_STATUS" in
+    200|201)
+        log "Dani/MASDAN-DX model profile imported successfully."
+        ;;
+    *)
+        printf '[bootstrap] Model import response:\n' >&2
+        cat "$MODEL_RESPONSE_FILE" >&2 || true
+        printf '\n' >&2
+        die "Model import failed with HTTP ${MODEL_STATUS}."
+        ;;
+esac
+
+# Remove temporary files and drop shell variables containing auth material.
+rm -f /tmp/bootstrap-tool-check.json \
+      /tmp/bootstrap-tool-create.json \
+      /tmp/bootstrap-model-import.json
+unset AUTH_PAYLOAD AUTH_RESPONSE TOKEN TOOL_PAYLOAD MODEL_PAYLOAD 2>/dev/null || true
 
 log "Bootstrap complete. Handing lifecycle back to Open WebUI."
 trap - ERR INT TERM
