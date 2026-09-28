@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Masdan Automations</title>
+    <title>MASDAN-DX Intel Dashboard</title>
     <style>
       :root {
         color-scheme: dark;
@@ -31,7 +31,12 @@
       }
 
       header { margin-bottom: 1.75rem; }
-      h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.5rem); letter-spacing: -0.04em; }
+      h1 {
+        margin: 0;
+        font-size: clamp(0.95rem, 4.8vw, 2.5rem);
+        letter-spacing: -0.04em;
+        white-space: nowrap;
+      }
       header p, .empty p { color: #a1a1aa; }
 
       .grid {
@@ -158,14 +163,14 @@
   <body>
     <main class="shell">
       <header>
-        <h1>Automations</h1>
-        <p>A lightweight control surface for your Open WebUI automations.</p>
+        <h1>MASDAN-DX Intel Dashboard</h1>
+        <p>Your intelligence, packaged and ready to move.</p>
       </header>
 
       <div class="grid">
         <section class="panel" aria-labelledby="authentication-heading">
           <h2 id="authentication-heading">Authentication</h2>
-          <p class="hint">Sign in with your Open WebUI account. Your session token stays in this browser tab.</p>
+          <p class="hint">Sign in to MASDAN-DX. Your session token stays in this browser tab.</p>
 
           <form id="sign-in-form">
             <label for="username">Username or email</label>
@@ -180,25 +185,25 @@
           <p id="status" class="status" role="status" aria-live="polite">Not signed in</p>
 
           <div class="actions">
-            <button id="list-button" class="secondary" type="button" disabled>List automations</button>
+            <button id="list-button" class="secondary" type="button" disabled>List Intel Packs</button>
             <input id="template-file" class="file-input" type="file" accept="application/json,.json" />
-            <button id="upload-button" class="secondary" type="button">Upload Template</button>
-            <button id="import-button" type="button" disabled>Import Automation</button>
-            <button id="open-delete-button" class="danger" type="button" disabled>Delete Automation</button>
-            <button id="open-run-button" class="success" type="button" disabled>Run Task Manually</button>
-            <p id="import-status" class="status import-status" role="status" aria-live="polite">Choose an exported automation JSON file.</p>
+            <button id="upload-button" class="secondary" type="button">Upload Intel Pack</button>
+            <button id="import-button" type="button" disabled>Import Intel Pack</button>
+            <button id="open-delete-button" class="danger" type="button" disabled>Delete Intel Pack</button>
+            <button id="open-run-button" class="success" type="button" disabled>Run Intel Pack Job</button>
+            <p id="import-status" class="status import-status" role="status" aria-live="polite">Choose an exported Intel Pack JSON file.</p>
           </div>
         </section>
 
         <section class="panel" aria-labelledby="automations-heading">
           <div class="results-header">
-            <h2 id="automations-heading">Existing automations</h2>
+            <h2 id="automations-heading">Your Intel Packs</h2>
             <span id="count" class="count"></span>
           </div>
           <div id="results" class="empty" aria-live="polite">
             <div>
-              <strong>No automations loaded</strong>
-              <p>Sign in, then select “List automations” to retrieve them from this Open WebUI installation.</p>
+              <strong>No Intel Packs loaded</strong>
+              <p>Sign in, then select “List Intel Packs” to retrieve your intelligence library.</p>
             </div>
           </div>
         </section>
@@ -207,9 +212,9 @@
 
     <dialog id="delete-dialog" aria-labelledby="delete-dialog-heading">
       <form id="delete-form">
-        <h2 id="delete-dialog-heading">Delete Automation</h2>
-        <p class="hint">Enter the ID shown beneath the automation in the list. This action cannot be undone.</p>
-        <label for="automation-id">Automation ID</label>
+        <h2 id="delete-dialog-heading">Delete Intel Pack</h2>
+        <p class="hint">Enter the ID shown beneath the Intel Pack in the list. This action cannot be undone.</p>
+        <label for="automation-id">Intel Pack ID</label>
         <input id="automation-id" name="automationId" autocomplete="off" required />
         <div class="dialog-actions">
           <button id="confirm-delete-button" class="danger" type="submit">Delete</button>
@@ -221,9 +226,9 @@
 
     <dialog id="run-dialog" aria-labelledby="run-dialog-heading">
       <form id="run-form">
-        <h2 id="run-dialog-heading">Run Task Manually</h2>
-        <p class="hint">Enter the ID shown beneath the automation in the list.</p>
-        <label for="run-automation-id">Automation ID</label>
+        <h2 id="run-dialog-heading">Run Intel Pack Job</h2>
+        <p class="hint">Enter the ID shown beneath the Intel Pack in the list.</p>
+        <label for="run-automation-id">Intel Pack ID</label>
         <input id="run-automation-id" name="automationId" autocomplete="off" required />
         <div class="dialog-actions">
           <button id="confirm-run-button" class="success" type="submit">Run Now</button>
@@ -301,7 +306,7 @@
         const name = automationName(template);
         if (!template || Array.isArray(template) || typeof template !== "object" || !name) {
           importButton.disabled = true;
-          setImportStatus("Import not ready - invalid template ❌", "error");
+          setImportStatus("Import not ready — invalid Intel Pack ❌", "error");
           return false;
         }
 
@@ -341,7 +346,7 @@
           });
           const payload = await response.json().catch(() => ({}));
           if (!response.ok || !payload.token) {
-            throw new Error(messageFromError(payload, "Open WebUI did not return a session token."));
+            throw new Error(messageFromError(payload, "MASDAN-DX did not return a session token."));
           }
 
           token = payload.token;
@@ -367,7 +372,7 @@
 
       async function loadAutomations() {
         listButton.disabled = true;
-        renderMessage("Loading automations…", "Requesting the latest list from Open WebUI.");
+        renderMessage("Loading Intel Packs…", "Requesting the latest intelligence library.");
 
         try {
           const response = await fetch("/api/v1/automations/list", {
@@ -375,17 +380,17 @@
           });
           const payload = await response.json().catch(() => ({}));
           if (!response.ok) {
-            throw new Error(messageFromError(payload, `Unable to list automations (${response.status}).`));
+            throw new Error(messageFromError(payload, `Unable to list Intel Packs (${response.status}).`));
           }
 
           automations = Array.isArray(payload) ? payload : payload.items || payload.automations || [];
           renderAutomations(automations);
           if (template) validateTemplate();
-          setStatus("Automation list updated", "success");
+          setStatus("Intel Pack library updated", "success");
           return true;
         } catch (error) {
-          renderMessage("Could not load automations", error.message || "The request failed.");
-          setStatus(error.message || "Unable to list automations.", "error");
+          renderMessage("Could not load Intel Packs", error.message || "The request failed.");
+          setStatus(error.message || "Unable to list Intel Packs.", "error");
           return false;
         } finally {
           listButton.disabled = !token;
@@ -401,7 +406,7 @@
         template = null;
         importButton.disabled = true;
         if (!file) {
-          setImportStatus("Choose an exported automation JSON file.");
+          setImportStatus("Choose an exported Intel Pack JSON file.");
           return;
         }
 
@@ -409,7 +414,7 @@
           const exportedTemplate = JSON.parse(await file.text());
           if (Array.isArray(exportedTemplate)) {
             if (exportedTemplate.length !== 1) {
-              throw new Error("Choose an export containing exactly one automation.");
+              throw new Error("Choose an export containing exactly one Intel Pack.");
             }
             [template] = exportedTemplate;
           } else {
@@ -426,7 +431,7 @@
 
         importButton.disabled = true;
         uploadButton.disabled = true;
-        setImportStatus("Importing automation…");
+        setImportStatus("Importing Intel Pack…");
 
         try {
           const response = await fetch("/api/v1/automations/create", {
@@ -439,7 +444,7 @@
           });
           const payload = await response.json().catch(() => ({}));
           if (!response.ok) {
-            throw new Error(messageFromError(payload, `Unable to import automation (${response.status}).`));
+            throw new Error(messageFromError(payload, `Unable to import Intel Pack (${response.status}).`));
           }
 
           showToast("Import done!");
@@ -448,7 +453,7 @@
           setImportStatus("Import done!", "success");
           await loadAutomations();
         } catch (error) {
-          setImportStatus(error.message || "Unable to import automation.", "error");
+          setImportStatus(error.message || "Unable to import Intel Pack.", "error");
           importButton.disabled = false;
         } finally {
           uploadButton.disabled = false;
@@ -471,7 +476,7 @@
 
         confirmDeleteButton.disabled = true;
         closeDeleteButton.disabled = true;
-        setDeleteStatus("Deleting automation…");
+        setDeleteStatus("Deleting Intel Pack…");
 
         try {
           const response = await fetch(`/api/v1/automations/${encodeURIComponent(automationId)}/delete`, {
@@ -480,14 +485,14 @@
           });
           const payload = await response.json().catch(() => ({}));
           if (!response.ok) {
-            throw new Error(messageFromError(payload, `Unable to delete automation (${response.status}).`));
+            throw new Error(messageFromError(payload, `Unable to delete Intel Pack (${response.status}).`));
           }
 
           deleteDialog.close();
-          showToast("Automation deleted!");
+          showToast("Intel Pack deleted!");
           await loadAutomations();
         } catch (error) {
-          setDeleteStatus(error.message || "Unable to delete automation.", "error");
+          setDeleteStatus(error.message || "Unable to delete Intel Pack.", "error");
         } finally {
           confirmDeleteButton.disabled = false;
           closeDeleteButton.disabled = false;
@@ -517,12 +522,12 @@
           });
           const payload = await response.json().catch(() => ({}));
           if (!response.ok) {
-            throw new Error(messageFromError(payload, `Unable to run automation (${response.status}).`));
+            throw new Error(messageFromError(payload, `Unable to run Intel Pack Job (${response.status}).`));
           }
 
-          showToast("Automation initiated!");
+          showToast("Intel Pack Job initiated!");
         } catch (error) {
-          showToast(error.message || "Unable to run automation.", "error");
+          showToast(error.message || "Unable to run Intel Pack Job.", "error");
         } finally {
           runDialog.close();
           confirmRunButton.disabled = false;
@@ -547,9 +552,9 @@
       }
 
       function renderAutomations(automations) {
-        count.textContent = `${automations.length} ${automations.length === 1 ? "automation" : "automations"}`;
+        count.textContent = `${automations.length} ${automations.length === 1 ? "Intel Pack" : "Intel Packs"}`;
         if (!automations.length) {
-          renderMessage("No automations found", "This Open WebUI installation returned an empty list.");
+          renderMessage("No Intel Packs found", "Your intelligence library is ready for its first Intel Pack.");
           return;
         }
 
@@ -560,7 +565,7 @@
           const description = document.createElement("p");
           const identifier = document.createElement("code");
           card.className = "automation";
-          title.textContent = automation.name || automation.title || `Automation ${index + 1}`;
+          title.textContent = automation.name || automation.title || `Intel Pack ${index + 1}`;
           description.textContent = automation.description || "No description provided.";
           identifier.textContent = automation.id || automation.slug || "ID unavailable";
           card.append(title, description, identifier);
