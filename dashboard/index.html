@@ -84,6 +84,8 @@
       button.secondary:hover:not(:disabled) { background: #3f3f46; }
       button.danger { background: #b91c1c; border-color: #dc2626; }
       button.danger:hover:not(:disabled) { background: #991b1b; }
+      button.success { background: #15803d; border-color: #16a34a; }
+      button.success:hover:not(:disabled) { background: #166534; }
       button:disabled { cursor: not-allowed; opacity: 0.45; }
       .actions { margin-top: 1.4rem; padding-top: 0.65rem; border-top: 1px solid #27272a; }
 
@@ -109,6 +111,7 @@
       }
 
       .toast[hidden] { display: none; }
+      .toast.error { border-color: #991b1b; background: #450a0a; color: #fecaca; }
 
       dialog {
         width: min(24rem, calc(100% - 2rem));
@@ -182,6 +185,7 @@
             <button id="upload-button" class="secondary" type="button">Upload Template</button>
             <button id="import-button" type="button" disabled>Import Automation</button>
             <button id="open-delete-button" class="danger" type="button" disabled>Delete Automation</button>
+            <button id="open-run-button" class="success" type="button" disabled>Run Task Manually</button>
             <p id="import-status" class="status import-status" role="status" aria-live="polite">Choose an exported automation JSON file.</p>
           </div>
         </section>
@@ -215,6 +219,19 @@
       </form>
     </dialog>
 
+    <dialog id="run-dialog" aria-labelledby="run-dialog-heading">
+      <form id="run-form">
+        <h2 id="run-dialog-heading">Run Task Manually</h2>
+        <p class="hint">Enter the ID shown beneath the automation in the list.</p>
+        <label for="run-automation-id">Automation ID</label>
+        <input id="run-automation-id" name="automationId" autocomplete="off" required />
+        <div class="dialog-actions">
+          <button id="confirm-run-button" class="success" type="submit">Run Now</button>
+          <button id="close-run-button" class="secondary" type="button">Close</button>
+        </div>
+      </form>
+    </dialog>
+
     <p id="toast" class="toast" role="status" aria-live="polite" hidden>Import done!</p>
 
     <script>
@@ -231,6 +248,11 @@
       const confirmDeleteButton = document.querySelector("#confirm-delete-button");
       const closeDeleteButton = document.querySelector("#close-delete-button");
       const deleteStatus = document.querySelector("#delete-status");
+      const openRunButton = document.querySelector("#open-run-button");
+      const runDialog = document.querySelector("#run-dialog");
+      const runForm = document.querySelector("#run-form");
+      const confirmRunButton = document.querySelector("#confirm-run-button");
+      const closeRunButton = document.querySelector("#close-run-button");
       const status = document.querySelector("#status");
       const results = document.querySelector("#results");
       const count = document.querySelector("#count");
@@ -243,6 +265,7 @@
       if (token) {
         listButton.disabled = false;
         openDeleteButton.disabled = false;
+        openRunButton.disabled = false;
         setStatus("Signed in for this browser tab", "success");
       }
 
@@ -293,9 +316,10 @@
         return true;
       }
 
-      function showToast(message) {
+      function showToast(message, type = "") {
         window.clearTimeout(toastTimer);
         toast.textContent = message;
+        toast.className = `toast ${type}`;
         toast.hidden = false;
         toastTimer = window.setTimeout(() => { toast.hidden = true; }, 4000);
       }
@@ -325,6 +349,7 @@
           signInForm.elements.password.value = "";
           listButton.disabled = false;
           openDeleteButton.disabled = false;
+          openRunButton.disabled = false;
           setStatus(`Signed in${payload.name ? ` as ${payload.name}` : ""}`, "success");
           if (template) validateTemplate();
         } catch (error) {
@@ -332,6 +357,7 @@
           sessionStorage.removeItem("masdan-open-webui-token");
           importButton.disabled = true;
           openDeleteButton.disabled = true;
+          openRunButton.disabled = true;
           if (template) validateTemplate();
           setStatus(error.message || "Unable to sign in.", "error");
         } finally {
@@ -448,7 +474,7 @@
         setDeleteStatus("Deleting automation…");
 
         try {
-          const response = await fetch(`/api/v1/automations/id/${encodeURIComponent(automationId)}/delete`, {
+          const response = await fetch(`/api/v1/automations/${encodeURIComponent(automationId)}/delete`, {
             method: "DELETE",
             headers: { Authorization: `Bearer ${token}` },
           });
@@ -465,6 +491,42 @@
         } finally {
           confirmDeleteButton.disabled = false;
           closeDeleteButton.disabled = false;
+        }
+      });
+
+      openRunButton.addEventListener("click", () => {
+        runForm.reset();
+        runDialog.showModal();
+        runForm.elements.automationId.focus();
+      });
+
+      closeRunButton.addEventListener("click", () => runDialog.close());
+
+      runForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const automationId = runForm.elements.automationId.value.trim();
+        if (!automationId || !token) return;
+
+        confirmRunButton.disabled = true;
+        closeRunButton.disabled = true;
+
+        try {
+          const response = await fetch(`/api/v1/automations/${encodeURIComponent(automationId)}/run`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(messageFromError(payload, `Unable to run automation (${response.status}).`));
+          }
+
+          showToast("Automation initiated!");
+        } catch (error) {
+          showToast(error.message || "Unable to run automation.", "error");
+        } finally {
+          runDialog.close();
+          confirmRunButton.disabled = false;
+          closeRunButton.disabled = false;
         }
       });
 
