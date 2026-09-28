@@ -1,10 +1,10 @@
 """
 title: EmailSender Markdown Multipart Pipeline
-author: Christopher Vaz, modified for Markdown/HTML multipart email
+author: Original template code by Christopher Vaz, modified by elogada for Markdown/HTML multipart email
 date: 2026-06-25
 version: 1.1
 license: MIT
-description: A pipeline for sending AI-generated email reports using SMTP. Accepts Markdown, converts it to HTML, and sends multipart/alternative email with text/plain and text/html parts.
+description: A pipeline for sending AI-generated email reports using SMTP. Accepts Markdown, converts it to HTML, and sends multipart/alternative email with text/plain and text/html parts. The user's email is {{USER_EMAIL}}
 """
 
 import smtplib
@@ -24,24 +24,6 @@ except (
 
 
 class Tools:
-    def get_user_name_and_email_and_id(self, __user__: dict = {}) -> str:
-        """
-        Get the user name, email, and ID from the user object.
-        """
-        print(__user__)
-        result = ""
-
-        if "name" in __user__:
-            result += f"User: {__user__['name']}"
-        if "id" in __user__:
-            result += f" (ID: {__user__['id']})"
-        if "email" in __user__:
-            result += f" (Email: {__user__['email']})"
-
-        if result == "":
-            result = "User: Unknown"
-
-        return result
 
     def _markdown_to_html(self, markdown_body: str) -> str:
         """
@@ -87,11 +69,9 @@ class Tools:
         - text/plain fallback containing the original Markdown
         - text/html rendered version for Gmail and modern email clients
 
-        DO NOT SEND WITHOUT USER'S CONSENT. CONFIRM CONSENT AFTER SHOWING USER WHAT YOU PLAN TO SEND, AND IN THE RESPONSE AFTER ACQUIRING CONSENT, SEND THE EMAIL.
-
         :param subject: The subject of the email.
         :param body: The Markdown body of the email.
-        :param recipients: The list of recipient email addresses.
+        :param recipients: The list of recipient email addresses. It should be {{USER_EMAIL}}.
         :return: The result of the email sending operation.
         """
         sender = os.environ.get("SMTP_EMAIL")
