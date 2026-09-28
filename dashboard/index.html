@@ -82,8 +82,48 @@
       button:hover:not(:disabled) { background: #1d4ed8; }
       button.secondary { background: #27272a; border-color: #3f3f46; }
       button.secondary:hover:not(:disabled) { background: #3f3f46; }
+      button.danger { background: #b91c1c; border-color: #dc2626; }
+      button.danger:hover:not(:disabled) { background: #991b1b; }
       button:disabled { cursor: not-allowed; opacity: 0.45; }
       .actions { margin-top: 1.4rem; padding-top: 0.65rem; border-top: 1px solid #27272a; }
+
+      .file-input { display: none; }
+      .import-status { margin-bottom: 0; }
+
+      .toast {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 10;
+        width: auto;
+        max-width: min(22rem, calc(100% - 2rem));
+        margin: 0;
+        padding: 0.85rem 1rem;
+        border: 1px solid #166534;
+        border-radius: 0.75rem;
+        background: #052e16;
+        color: #bbf7d0;
+        box-shadow: 0 1rem 3rem rgb(0 0 0 / 35%);
+        font-size: 0.9rem;
+        font-weight: 700;
+      }
+
+      .toast[hidden] { display: none; }
+
+      dialog {
+        width: min(24rem, calc(100% - 2rem));
+        padding: 1.5rem;
+        border: 1px solid #3f3f46;
+        border-radius: 1rem;
+        background: #18181b;
+        color: #f4f4f5;
+        box-shadow: 0 1rem 4rem rgb(0 0 0 / 55%);
+      }
+
+      dialog::backdrop { background: rgb(0 0 0 / 70%); }
+      dialog h2 { margin-bottom: 0.4rem; }
+      dialog .hint { margin-bottom: 0.75rem; }
+      .dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 
       .status { min-height: 1.25rem; margin: 0.8rem 0 0; color: #a1a1aa; font-size: 0.82rem; }
       .status.success { color: #86efac; }
@@ -138,7 +178,11 @@
 
           <div class="actions">
             <button id="list-button" class="secondary" type="button" disabled>List automations</button>
-            <button type="button" disabled title="Coming in a future prototype">Upload automation — coming soon</button>
+            <input id="template-file" class="file-input" type="file" accept="application/json,.json" />
+            <button id="upload-button" class="secondary" type="button">Upload Template</button>
+            <button id="import-button" type="button" disabled>Import Automation</button>
+            <button id="open-delete-button" class="danger" type="button" disabled>Delete Automation</button>
+            <p id="import-status" class="status import-status" role="status" aria-live="polite">Choose an exported automation JSON file.</p>
           </div>
         </section>
 
@@ -157,17 +201,48 @@
       </div>
     </main>
 
+    <dialog id="delete-dialog" aria-labelledby="delete-dialog-heading">
+      <form id="delete-form">
+        <h2 id="delete-dialog-heading">Delete Automation</h2>
+        <p class="hint">Enter the ID shown beneath the automation in the list. This action cannot be undone.</p>
+        <label for="automation-id">Automation ID</label>
+        <input id="automation-id" name="automationId" autocomplete="off" required />
+        <div class="dialog-actions">
+          <button id="confirm-delete-button" class="danger" type="submit">Delete</button>
+          <button id="close-delete-button" class="secondary" type="button">Close</button>
+        </div>
+        <p id="delete-status" class="status" role="status" aria-live="polite"></p>
+      </form>
+    </dialog>
+
+    <p id="toast" class="toast" role="status" aria-live="polite" hidden>Import done!</p>
+
     <script>
       const signInForm = document.querySelector("#sign-in-form");
       const signInButton = document.querySelector("#sign-in-button");
       const listButton = document.querySelector("#list-button");
+      const templateFile = document.querySelector("#template-file");
+      const uploadButton = document.querySelector("#upload-button");
+      const importButton = document.querySelector("#import-button");
+      const importStatus = document.querySelector("#import-status");
+      const openDeleteButton = document.querySelector("#open-delete-button");
+      const deleteDialog = document.querySelector("#delete-dialog");
+      const deleteForm = document.querySelector("#delete-form");
+      const confirmDeleteButton = document.querySelector("#confirm-delete-button");
+      const closeDeleteButton = document.querySelector("#close-delete-button");
+      const deleteStatus = document.querySelector("#delete-status");
       const status = document.querySelector("#status");
       const results = document.querySelector("#results");
       const count = document.querySelector("#count");
+      const toast = document.querySelector("#toast");
       let token = sessionStorage.getItem("masdan-open-webui-token");
+      let automations = [];
+      let template = null;
+      let toastTimer;
 
       if (token) {
         listButton.disabled = false;
+        openDeleteButton.disabled = false;
         setStatus("Signed in for this browser tab", "success");
       }
 
@@ -178,6 +253,51 @@
 
       function messageFromError(payload, fallback) {
         return payload?.detail || payload?.message || fallback;
+      }
+
+      function setImportStatus(message, type = "") {
+        importStatus.textContent = message;
+        importStatus.className = `status import-status ${type}`;
+      }
+
+      function setDeleteStatus(message, type = "") {
+        deleteStatus.textContent = message;
+        deleteStatus.className = `status ${type}`;
+      }
+
+      function automationName(automation) {
+        return typeof automation?.name === "string" ? automation.name.trim() : "";
+      }
+
+      function duplicateExists(name) {
+        const normalizedName = name.toLocaleLowerCase();
+        return automations.some((automation) => automationName(automation).toLocaleLowerCase() === normalizedName);
+      }
+
+      function validateTemplate() {
+        const name = automationName(template);
+        if (!template || typeof template !== "object" || !name) {
+          importButton.disabled = true;
+          setImportStatus("Import not ready - invalid template ❌", "error");
+          return false;
+        }
+
+        if (duplicateExists(name)) {
+          importButton.disabled = true;
+          setImportStatus("Import not ready - duplicate Found ❌", "error");
+          return false;
+        }
+
+        importButton.disabled = !token;
+        setImportStatus(token ? "Import Ready✔️" : "Import ready after sign in", token ? "success" : "");
+        return true;
+      }
+
+      function showToast(message) {
+        window.clearTimeout(toastTimer);
+        toast.textContent = message;
+        toast.hidden = false;
+        toastTimer = window.setTimeout(() => { toast.hidden = true; }, 4000);
       }
 
       signInForm.addEventListener("submit", async (event) => {
@@ -204,22 +324,27 @@
           sessionStorage.setItem("masdan-open-webui-token", token);
           signInForm.elements.password.value = "";
           listButton.disabled = false;
+          openDeleteButton.disabled = false;
           setStatus(`Signed in${payload.name ? ` as ${payload.name}` : ""}`, "success");
+          if (template) validateTemplate();
         } catch (error) {
           token = null;
           sessionStorage.removeItem("masdan-open-webui-token");
+          importButton.disabled = true;
+          openDeleteButton.disabled = true;
+          if (template) validateTemplate();
           setStatus(error.message || "Unable to sign in.", "error");
         } finally {
           signInButton.disabled = false;
         }
       });
 
-      listButton.addEventListener("click", async () => {
+      async function loadAutomations() {
         listButton.disabled = true;
         renderMessage("Loading automations…", "Requesting the latest list from Open WebUI.");
 
         try {
-          const response = await fetch("/api/v1/automations/", {
+          const response = await fetch("/api/v1/automations/list", {
             headers: { Authorization: `Bearer ${token}` },
           });
           const payload = await response.json().catch(() => ({}));
@@ -227,14 +352,119 @@
             throw new Error(messageFromError(payload, `Unable to list automations (${response.status}).`));
           }
 
-          const automations = Array.isArray(payload) ? payload : payload.items || payload.automations || [];
+          automations = Array.isArray(payload) ? payload : payload.items || payload.automations || [];
           renderAutomations(automations);
+          if (template) validateTemplate();
           setStatus("Automation list updated", "success");
+          return true;
         } catch (error) {
           renderMessage("Could not load automations", error.message || "The request failed.");
           setStatus(error.message || "Unable to list automations.", "error");
+          return false;
         } finally {
           listButton.disabled = !token;
+        }
+      }
+
+      listButton.addEventListener("click", loadAutomations);
+
+      uploadButton.addEventListener("click", () => templateFile.click());
+
+      templateFile.addEventListener("change", async () => {
+        const file = templateFile.files[0];
+        template = null;
+        importButton.disabled = true;
+        if (!file) {
+          setImportStatus("Choose an exported automation JSON file.");
+          return;
+        }
+
+        try {
+          const exportedTemplate = JSON.parse(await file.text());
+          if (Array.isArray(exportedTemplate)) {
+            if (exportedTemplate.length !== 1) {
+              throw new Error("Choose an export containing exactly one automation.");
+            }
+            [template] = exportedTemplate;
+          } else {
+            template = exportedTemplate;
+          }
+          validateTemplate();
+        } catch (error) {
+          setImportStatus(error.message || "Import not ready - invalid JSON ❌", "error");
+        }
+      });
+
+      importButton.addEventListener("click", async () => {
+        if (!token || !validateTemplate()) return;
+
+        importButton.disabled = true;
+        uploadButton.disabled = true;
+        setImportStatus("Importing automation…");
+
+        try {
+          const response = await fetch("/api/v1/automations/create", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(template),
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(messageFromError(payload, `Unable to import automation (${response.status}).`));
+          }
+
+          showToast("Import done!");
+          template = null;
+          templateFile.value = "";
+          setImportStatus("Import done!", "success");
+          await loadAutomations();
+        } catch (error) {
+          setImportStatus(error.message || "Unable to import automation.", "error");
+          importButton.disabled = false;
+        } finally {
+          uploadButton.disabled = false;
+        }
+      });
+
+      openDeleteButton.addEventListener("click", () => {
+        deleteForm.reset();
+        setDeleteStatus("");
+        deleteDialog.showModal();
+        deleteForm.elements.automationId.focus();
+      });
+
+      closeDeleteButton.addEventListener("click", () => deleteDialog.close());
+
+      deleteForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const automationId = deleteForm.elements.automationId.value.trim();
+        if (!automationId || !token) return;
+
+        confirmDeleteButton.disabled = true;
+        closeDeleteButton.disabled = true;
+        setDeleteStatus("Deleting automation…");
+
+        try {
+          const response = await fetch(`/api/v1/automations/id/${encodeURIComponent(automationId)}/delete`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(messageFromError(payload, `Unable to delete automation (${response.status}).`));
+          }
+
+          deleteDialog.close();
+          showToast("Automation deleted!");
+          await loadAutomations();
+        } catch (error) {
+          setDeleteStatus(error.message || "Unable to delete automation.", "error");
+        } finally {
+          confirmDeleteButton.disabled = false;
+          closeDeleteButton.disabled = false;
         }
       });
 
