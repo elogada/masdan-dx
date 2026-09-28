@@ -277,6 +277,7 @@
       function validateTemplate() {
         const name = automationName(template);
         if (!template || typeof template !== "object" || !name) {
+        if (!template || Array.isArray(template) || typeof template !== "object" || !name) {
           importButton.disabled = true;
           setImportStatus("Import not ready - invalid template ❌", "error");
           return false;
@@ -392,6 +393,10 @@
           validateTemplate();
         } catch (error) {
           setImportStatus(error.message || "Import not ready - invalid JSON ❌", "error");
+          template = JSON.parse(await file.text());
+          validateTemplate();
+        } catch {
+          setImportStatus("Import not ready - invalid JSON ❌", "error");
         }
       });
 
