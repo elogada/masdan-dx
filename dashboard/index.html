@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Masdan Automations</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        background: #09090b;
+        color: #f4f4f5;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        background:
+          radial-gradient(circle at top left, rgb(37 99 235 / 14%), transparent 32rem),
+          #09090b;
+      }
+
+      .shell {
+        width: min(70rem, calc(100% - 2rem));
+        margin: 0 auto;
+        padding: 4rem 0;
+      }
+
+      header { margin-bottom: 1.75rem; }
+      h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.5rem); letter-spacing: -0.04em; }
+      header p, .empty p { color: #a1a1aa; }
+
+      .grid {
+        display: grid;
+        grid-template-columns: minmax(17rem, 0.75fr) minmax(0, 1.5fr);
+        gap: 1rem;
+      }
+
+      .panel {
+        min-width: 0;
+        padding: 1.5rem;
+        border: 1px solid #27272a;
+        border-radius: 1rem;
+        background: rgb(24 24 27 / 88%);
+        box-shadow: 0 1rem 3rem rgb(0 0 0 / 20%);
+      }
+
+      h2 { margin: 0 0 0.35rem; font-size: 1rem; }
+      .hint { margin: 0 0 1.4rem; color: #a1a1aa; font-size: 0.875rem; line-height: 1.5; }
+      label { display: block; margin: 1rem 0 0.45rem; color: #d4d4d8; font-size: 0.875rem; font-weight: 600; }
+
+      input, button {
+        width: 100%;
+        border: 1px solid #3f3f46;
+        border-radius: 0.65rem;
+        font: inherit;
+      }
+
+      input {
+        padding: 0.75rem 0.85rem;
+        outline: none;
+        background: #09090b;
+        color: #fafafa;
+      }
+
+      input:focus { border-color: #60a5fa; box-shadow: 0 0 0 3px rgb(59 130 246 / 18%); }
+
+      button {
+        margin-top: 0.75rem;
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        background: #2563eb;
+        border-color: #2563eb;
+        color: white;
+        font-weight: 700;
+      }
+
+      button:hover:not(:disabled) { background: #1d4ed8; }
+      button.secondary { background: #27272a; border-color: #3f3f46; }
+      button.secondary:hover:not(:disabled) { background: #3f3f46; }
+      button:disabled { cursor: not-allowed; opacity: 0.45; }
+      .actions { margin-top: 1.4rem; padding-top: 0.65rem; border-top: 1px solid #27272a; }
+
+      .status { min-height: 1.25rem; margin: 0.8rem 0 0; color: #a1a1aa; font-size: 0.82rem; }
+      .status.success { color: #86efac; }
+      .status.error { color: #fca5a5; }
+
+      .results-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+      .count { color: #71717a; font-size: 0.8rem; }
+      .empty { display: grid; min-height: 19rem; place-content: center; text-align: center; }
+      .empty strong { font-size: 1.05rem; }
+      .empty p { max-width: 25rem; margin: 0.5rem auto 0; line-height: 1.5; }
+
+      .automation-list { display: grid; gap: 0.75rem; margin-top: 1.25rem; }
+      .automation {
+        padding: 1rem;
+        border: 1px solid #27272a;
+        border-radius: 0.75rem;
+        background: #111113;
+      }
+      .automation h3 { margin: 0; font-size: 0.95rem; }
+      .automation p { margin: 0.35rem 0 0; color: #a1a1aa; font-size: 0.85rem; line-height: 1.45; }
+      .automation code { color: #93c5fd; font-size: 0.75rem; overflow-wrap: anywhere; }
+
+      @media (max-width: 720px) {
+        .shell { padding: 2rem 0; }
+        .grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <h1>Automations</h1>
+        <p>A lightweight control surface for your Open WebUI automations.</p>
+      </header>
+
+      <div class="grid">
+        <section class="panel" aria-labelledby="authentication-heading">
+          <h2 id="authentication-heading">Authentication</h2>
+          <p class="hint">Sign in with your Open WebUI account. Your session token stays in this browser tab.</p>
+
+          <form id="sign-in-form">
+            <label for="username">Username or email</label>
+            <input id="username" name="username" autocomplete="username" required />
+
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required />
+
+            <button id="sign-in-button" type="submit">Sign in</button>
+          </form>
+
+          <p id="status" class="status" role="status" aria-live="polite">Not signed in</p>
+
+          <div class="actions">
+            <button id="list-button" class="secondary" type="button" disabled>List automations</button>
+            <button type="button" disabled title="Coming in a future prototype">Upload automation — coming soon</button>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="automations-heading">
+          <div class="results-header">
+            <h2 id="automations-heading">Existing automations</h2>
+            <span id="count" class="count"></span>
+          </div>
+          <div id="results" class="empty" aria-live="polite">
+            <div>
+              <strong>No automations loaded</strong>
+              <p>Sign in, then select “List automations” to retrieve them from this Open WebUI installation.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const signInForm = document.querySelector("#sign-in-form");
+      const signInButton = document.querySelector("#sign-in-button");
+      const listButton = document.querySelector("#list-button");
+      const status = document.querySelector("#status");
+      const results = document.querySelector("#results");
+      const count = document.querySelector("#count");
+      let token = sessionStorage.getItem("masdan-open-webui-token");
+
+      if (token) {
+        listButton.disabled = false;
+        setStatus("Signed in for this browser tab", "success");
+      }
+
+      function setStatus(message, type = "") {
+        status.textContent = message;
+        status.className = `status ${type}`;
+      }
+
+      function messageFromError(payload, fallback) {
+        return payload?.detail || payload?.message || fallback;
+      }
+
+      signInForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        signInButton.disabled = true;
+        listButton.disabled = true;
+        setStatus("Signing in…");
+
+        try {
+          const response = await fetch("/api/v1/auths/signin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: signInForm.elements.username.value.trim(),
+              password: signInForm.elements.password.value,
+            }),
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok || !payload.token) {
+            throw new Error(messageFromError(payload, "Open WebUI did not return a session token."));
+          }
+
+          token = payload.token;
+          sessionStorage.setItem("masdan-open-webui-token", token);
+          signInForm.elements.password.value = "";
+          listButton.disabled = false;
+          setStatus(`Signed in${payload.name ? ` as ${payload.name}` : ""}`, "success");
+        } catch (error) {
+          token = null;
+          sessionStorage.removeItem("masdan-open-webui-token");
+          setStatus(error.message || "Unable to sign in.", "error");
+        } finally {
+          signInButton.disabled = false;
+        }
+      });
+
+      listButton.addEventListener("click", async () => {
+        listButton.disabled = true;
+        renderMessage("Loading automations…", "Requesting the latest list from Open WebUI.");
+
+        try {
+          const response = await fetch("/api/v1/automations/", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(messageFromError(payload, `Unable to list automations (${response.status}).`));
+          }
+
+          const automations = Array.isArray(payload) ? payload : payload.items || payload.automations || [];
+          renderAutomations(automations);
+          setStatus("Automation list updated", "success");
+        } catch (error) {
+          renderMessage("Could not load automations", error.message || "The request failed.");
+          setStatus(error.message || "Unable to list automations.", "error");
+        } finally {
+          listButton.disabled = !token;
+        }
+      });
+
+      function renderMessage(title, message) {
+        count.textContent = "";
+        results.className = "empty";
+        results.replaceChildren(makeMessage(title, message));
+      }
+
+      function makeMessage(title, message) {
+        const wrapper = document.createElement("div");
+        const heading = document.createElement("strong");
+        const detail = document.createElement("p");
+        heading.textContent = title;
+        detail.textContent = message;
+        wrapper.append(heading, detail);
+        return wrapper;
+      }
+
+      function renderAutomations(automations) {
+        count.textContent = `${automations.length} ${automations.length === 1 ? "automation" : "automations"}`;
+        if (!automations.length) {
+          renderMessage("No automations found", "This Open WebUI installation returned an empty list.");
+          return;
+        }
+
+        results.className = "automation-list";
+        results.replaceChildren(...automations.map((automation, index) => {
+          const card = document.createElement("article");
+          const title = document.createElement("h3");
+          const description = document.createElement("p");
+          const identifier = document.createElement("code");
+          card.className = "automation";
+          title.textContent = automation.name || automation.title || `Automation ${index + 1}`;
+          description.textContent = automation.description || "No description provided.";
+          identifier.textContent = automation.id || automation.slug || "ID unavailable";
+          card.append(title, description, identifier);
+          return card;
+        }));
+      }
+    </script>
+  </body>
+</html>

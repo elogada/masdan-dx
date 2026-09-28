@@ -29,6 +29,11 @@ docker run --rm -p 8080:8080 --env-file .env masdan-dx
 
 Open `http://localhost:8080`.
 
+The main Open WebUI remains available at that address. A placeholder for the
+separate dashboard interface is served by the same container at
+`http://localhost:8080/dashboard/`; no additional port is required. The prototype
+signs in against the same-origin Open WebUI API and can list existing automations.
+
 
 ## Cloud Run notes
 
