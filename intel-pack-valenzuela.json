@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Valenzuela-Malabon Traffic Watch - Daily 7AM",
+    "folder_id": null,
+    "data": {
+      "prompt": "Search for ongoing Valenzuela/Malabon traffic issues, road work or accidents at present, and email your findings to me.",
+      "model_id": "models/gemini-3.5-flash",
+      "rrule": "RRULE:FREQ=DAILY;BYHOUR=7;BYMINUTE=0",
+      "terminal": null,
+      "target": {
+        "type": "chat",
+        "channel_id": null
+      }
+    },
+    "is_active": true
+  }
+]

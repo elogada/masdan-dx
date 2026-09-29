@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Threat Intelligence - Daily 8AM",
+    "folder_id": null,
+    "data": {
+      "prompt": "This is a Threat Intelligence task. My software stack: Google Cloud, Apache HTTPD, Ubuntu Linux, Wordpress, PHP. I am concerned with: recent published vulnerability announcements, ongoing attack campaigns targeting my stack, APT news of APTs who specialize in targeting my stack. Email your report to me.",
+      "model_id": "models/gemini-3.5-flash",
+      "rrule": "RRULE:FREQ=DAILY;BYHOUR=8;BYMINUTE=0",
+      "terminal": null,
+      "target": {
+        "type": "chat",
+        "channel_id": null
+      }
+    },
+    "is_active": true
+  }
+]
