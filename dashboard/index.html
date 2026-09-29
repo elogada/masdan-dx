@@ -30,7 +30,14 @@
         padding: 4rem 0;
       }
 
-      header { margin-bottom: 1.75rem; }
+      header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1.5rem;
+        margin-bottom: 1.75rem;
+      }
+      header p { margin-bottom: 0; }
       h1 {
         margin: 0;
         font-size: clamp(0.95rem, 4.8vw, 2.5rem);
@@ -38,6 +45,24 @@
         white-space: nowrap;
       }
       header p, .empty p { color: #a1a1aa; }
+
+      nav { display: flex; gap: 0.5rem; }
+      .nav-link {
+        display: inline-flex;
+        align-items: center;
+        min-height: 2.5rem;
+        padding: 0.6rem 0.9rem;
+        border: 1px solid #3f3f46;
+        border-radius: 0.65rem;
+        background: #18181b;
+        color: #d4d4d8;
+        font-size: 0.875rem;
+        font-weight: 700;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+      .nav-link:hover { border-color: #52525b; background: #27272a; color: #fff; }
+      .nav-link[aria-current="page"] { border-color: #2563eb; background: #2563eb; color: #fff; }
 
       .grid {
         display: grid;
@@ -156,6 +181,7 @@
 
       @media (max-width: 720px) {
         .shell { padding: 2rem 0; }
+        header { flex-direction: column; }
         .grid { grid-template-columns: 1fr; }
       }
     </style>
@@ -163,8 +189,14 @@
   <body>
     <main class="shell">
       <header>
-        <h1>MASDAN-DX Intel Dashboard</h1>
-        <p>Your intelligence, packaged and ready to move.</p>
+        <div>
+          <h1>MASDAN-DX Intel Dashboard</h1>
+          <p>Your intelligence, packaged and ready to move.</p>
+        </div>
+        <nav aria-label="Primary navigation">
+          <a class="nav-link" href="/marketplace/">Marketplace</a>
+          <a class="nav-link" href="/dashboard/" aria-current="page">Dashboard</a>
+        </nav>
       </header>
 
       <div class="grid">
