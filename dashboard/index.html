@@ -185,6 +185,7 @@
           <p id="status" class="status" role="status" aria-live="polite">Not signed in</p>
 
           <div class="actions">
+            <button id="open-create-credentials-button" class="secondary" type="button" disabled>Create Demo Credentials</button>
             <button id="list-button" class="secondary" type="button" disabled>List Intel Packs</button>
             <input id="template-file" class="file-input" type="file" accept="application/json,.json" />
             <button id="upload-button" class="secondary" type="button">Upload Intel Pack</button>
@@ -209,6 +210,28 @@
         </section>
       </div>
     </main>
+
+    <dialog id="create-credentials-dialog" aria-labelledby="create-credentials-dialog-heading">
+      <form id="create-credentials-form">
+        <h2 id="create-credentials-dialog-heading">Create Demo Credentials</h2>
+        <p class="hint">
+          Supply an email address and password for a new MASDAN-DX demo account.
+          The email address will be used as the recipient for Intel Pack reports.
+          Make sure to log in with your new credentials after they have been created.
+        </p>
+
+        <label for="demo-email">Email address</label>
+        <input id="demo-email" name="email" type="email" autocomplete="email" required />
+
+        <label for="demo-password">Password</label>
+        <input id="demo-password" name="password" type="password" autocomplete="new-password" required />
+
+        <div class="dialog-actions">
+          <button id="confirm-create-credentials-button" type="submit">Create Credentials</button>
+          <button id="close-create-credentials-button" class="secondary" type="button">Cancel</button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog id="delete-dialog" aria-labelledby="delete-dialog-heading">
       <form id="delete-form">
@@ -242,6 +265,11 @@
     <script>
       const signInForm = document.querySelector("#sign-in-form");
       const signInButton = document.querySelector("#sign-in-button");
+      const openCreateCredentialsButton = document.querySelector("#open-create-credentials-button");
+      const createCredentialsDialog = document.querySelector("#create-credentials-dialog");
+      const createCredentialsForm = document.querySelector("#create-credentials-form");
+      const confirmCreateCredentialsButton = document.querySelector("#confirm-create-credentials-button");
+      const closeCreateCredentialsButton = document.querySelector("#close-create-credentials-button");
       const listButton = document.querySelector("#list-button");
       const templateFile = document.querySelector("#template-file");
       const uploadButton = document.querySelector("#upload-button");
@@ -268,6 +296,7 @@
       let toastTimer;
 
       if (token) {
+        openCreateCredentialsButton.disabled = false;
         listButton.disabled = false;
         openDeleteButton.disabled = false;
         openRunButton.disabled = false;
@@ -332,6 +361,7 @@
       signInForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         signInButton.disabled = true;
+        openCreateCredentialsButton.disabled = true;
         listButton.disabled = true;
         setStatus("Signing in…");
 
@@ -352,6 +382,7 @@
           token = payload.token;
           sessionStorage.setItem("masdan-open-webui-token", token);
           signInForm.elements.password.value = "";
+          openCreateCredentialsButton.disabled = payload.role !== "admin";
           listButton.disabled = false;
           openDeleteButton.disabled = false;
           openRunButton.disabled = false;
@@ -361,12 +392,63 @@
           token = null;
           sessionStorage.removeItem("masdan-open-webui-token");
           importButton.disabled = true;
+          openCreateCredentialsButton.disabled = true;
           openDeleteButton.disabled = true;
           openRunButton.disabled = true;
           if (template) validateTemplate();
           setStatus(error.message || "Unable to sign in.", "error");
         } finally {
           signInButton.disabled = false;
+        }
+      });
+
+      openCreateCredentialsButton.addEventListener("click", () => {
+        createCredentialsForm.reset();
+        createCredentialsDialog.showModal();
+        createCredentialsForm.elements.email.focus();
+      });
+
+      closeCreateCredentialsButton.addEventListener("click", () => createCredentialsDialog.close());
+
+      createCredentialsForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!token) return;
+
+        const email = createCredentialsForm.elements.email.value.trim();
+        const password = createCredentialsForm.elements.password.value;
+        if (!email || !password) return;
+
+        confirmCreateCredentialsButton.disabled = true;
+        closeCreateCredentialsButton.disabled = true;
+
+        try {
+          const response = await fetch("/api/v1/auths/add", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              name: email,
+              email,
+              password,
+              role: "user",
+            }),
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(messageFromError(payload, `Unable to create credentials (${response.status}).`));
+          }
+
+          createCredentialsDialog.close();
+          createCredentialsForm.reset();
+          showToast("Credentials created! Login with your new credentials.");
+        } catch (error) {
+          createCredentialsDialog.close();
+          showToast(error.message || "Unable to create credentials.", "error");
+        } finally {
+          confirmCreateCredentialsButton.disabled = false;
+          closeCreateCredentialsButton.disabled = false;
         }
       });
 
