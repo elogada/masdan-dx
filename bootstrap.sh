@@ -107,6 +107,29 @@ print(token)
 [ -n "$TOKEN" ] || die "Open WebUI signin returned no JWT."
 log "Authenticated successfully."
 
+# Demo accounts remain regular users. Open WebUI disables automations for
+# regular users by default, including listing, importing, running and deleting.
+# Update the persisted permission too, so existing databases receive the fix.
+log "Enabling Intel Packs for regular users..."
+PERMISSIONS_PAYLOAD="$(
+    curl -fsS "${BASE_URL}/api/v1/users/default/permissions" \
+        -H "Authorization: Bearer ${TOKEN}" |
+        python -c '
+import json, sys
+permissions = json.load(sys.stdin)
+if not permissions.get("features", {}).get("automations", False):
+    permissions.setdefault("features", {})["automations"] = True
+    print(json.dumps(permissions))
+'
+)"
+if [ -n "$PERMISSIONS_PAYLOAD" ]; then
+    curl -fsS -X POST "${BASE_URL}/api/v1/users/default/permissions" \
+        -H "Authorization: Bearer ${TOKEN}" \
+        -H 'Content-Type: application/json' \
+        --data-binary "$PERMISSIONS_PAYLOAD" >/dev/null
+fi
+unset PERMISSIONS_PAYLOAD
+
 # Idempotency: check whether the tool already exists.
 # 200 => leave it alone for this first bootstrap version.
 # 404 => create it.
