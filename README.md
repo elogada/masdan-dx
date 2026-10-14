@@ -88,6 +88,13 @@ Open `http://localhost:8080/dashboard/` to launch the **MASDAN-DX Intel
 Dashboard**. The full Open WebUI frontend remains available at
 `http://localhost:8080`.
 
+An administrator can create demo credentials from the dashboard. These accounts
+remain regular users. At startup, MASDAN-DX enables the regular-user automation
+permission so they can list, import, run, and delete their own Intel Packs.
+Existing databases receive this permission update too; other user permissions
+are preserved. Each account has its own Intel Pack library, so a new demo
+account starts with an empty list rather than the administrator's packs.
+
 ## Cloud Run notes
 
 - Cloud Run supplies the `PORT` environment variable automatically; do not set
