@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Competitor Watch - Daily 9AM",
+    "folder_id": null,
+    "data": {
+      "prompt": "This is a Competitive Intelligence task. My company: Google Cloud. My competitors: Amazon Web Services, Microsoft Azure, Alibaba Cloud. Things I care about: new products, pricing, partnerships, geographic expansion, acquisitions, executive changes. Compile and email your findings to me.",
+      "model_id": "models/gemini-3.5-flash",
+      "rrule": "RRULE:FREQ=DAILY;BYHOUR=13;BYMINUTE=0",
+      "terminal": null,
+      "target": {
+        "type": "chat",
+        "channel_id": null
+      }
+    },
+    "is_active": true
+  }
+]

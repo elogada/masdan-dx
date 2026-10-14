@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Weather Watch - Daily 1PM",
+    "folder_id": null,
+    "data": {
+      "prompt": "Search for Philippines PAGASA weather updates in the Metro Manila area, and email your findings to me.",
+      "model_id": "models/gemini-3.5-flash",
+      "rrule": "RRULE:FREQ=DAILY;BYHOUR=13;BYMINUTE=0",
+      "terminal": null,
+      "target": {
+        "type": "chat",
+        "channel_id": null
+      }
+    },
+    "is_active": true
+  }
+]
