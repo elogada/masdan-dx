@@ -323,6 +323,7 @@
       const count = document.querySelector("#count");
       const toast = document.querySelector("#toast");
       let token = sessionStorage.getItem("masdan-open-webui-token");
+      let accountEmail = null;
       let automations = [];
       let template = null;
       let toastTimer;
@@ -338,6 +339,31 @@
       function setStatus(message, type = "") {
         status.textContent = message;
         status.className = `status ${type}`;
+      }
+
+      function clearAccount() {
+        accountEmail = null;
+        token = null;
+        sessionStorage.removeItem("masdan-open-webui-token");
+        automations = [];
+        renderMessage("Sign in to view Intel Packs", "Each account has its own Intel Pack library.");
+        importButton.disabled = true;
+        openCreateCredentialsButton.disabled = true;
+        listButton.disabled = true;
+        openDeleteButton.disabled = true;
+        openRunButton.disabled = true;
+      }
+
+      function useAccount(account) {
+        accountEmail = account.email || account.name;
+        token = account.token;
+        sessionStorage.setItem("masdan-open-webui-token", token);
+        openCreateCredentialsButton.disabled = account.role !== "admin";
+        listButton.disabled = false;
+        openDeleteButton.disabled = false;
+        openRunButton.disabled = false;
+        setStatus(`Signed in as ${account.email || account.name}. Reports go to this account's email.`, "success");
+        if (template) validateTemplate();
       }
 
       function messageFromError(payload, fallback) {
@@ -393,6 +419,7 @@
       signInForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         signInButton.disabled = true;
+        clearAccount();
         openCreateCredentialsButton.disabled = true;
         listButton.disabled = true;
         setStatus("Signing in…");
@@ -411,14 +438,13 @@
             throw new Error(messageFromError(payload, "MASDAN-DX did not return a session token."));
           }
 
-          token = payload.token;
-          sessionStorage.setItem("masdan-open-webui-token", token);
+          useAccount(payload);
           signInForm.elements.password.value = "";
           openCreateCredentialsButton.disabled = payload.role !== "admin";
           listButton.disabled = false;
           openDeleteButton.disabled = false;
           openRunButton.disabled = false;
-          setStatus(`Signed in${payload.name ? ` as ${payload.name}` : ""}`, "success");
+          await loadAutomations();
           if (template) validateTemplate();
         } catch (error) {
           token = null;
@@ -474,7 +500,24 @@
 
           createCredentialsDialog.close();
           createCredentialsForm.reset();
-          showToast("Credentials created! Login with your new credentials.");
+          // Creating a user does not change the administrator's session.
+          // Clear it before signing in so imports cannot retain admin ownership.
+          clearAccount();
+          const signInResponse = await fetch("/api/v1/auths/signin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+          const account = await signInResponse.json().catch(() => ({}));
+          if (!signInResponse.ok || !account.token) {
+            setStatus("Account created. Sign in with your new demo credentials before importing Intel Packs.", "error");
+            throw new Error("Account created, but automatic sign-in failed. Sign in with the new demo credentials.");
+          }
+          useAccount(account);
+          signInForm.elements.username.value = email;
+          signInForm.elements.password.value = "";
+          await loadAutomations();
+          showToast(`Demo account ready. Reports will be sent to ${email}.`);
         } catch (error) {
           createCredentialsDialog.close();
           showToast(error.message || "Unable to create credentials.", "error");
@@ -485,6 +528,7 @@
       });
 
       async function loadAutomations() {
+        const requestToken = token;
         listButton.disabled = true;
         renderMessage("Loading Intel Packs…", "Requesting the latest intelligence library.");
 
@@ -493,6 +537,7 @@
             headers: { Authorization: `Bearer ${token}` },
           });
           const payload = await response.json().catch(() => ({}));
+          if (token !== requestToken) return false;
           if (!response.ok) {
             throw new Error(messageFromError(payload, `Unable to list Intel Packs (${response.status}).`));
           }
@@ -500,9 +545,10 @@
           automations = Array.isArray(payload) ? payload : payload.items || payload.automations || [];
           renderAutomations(automations);
           if (template) validateTemplate();
-          setStatus("Intel Pack library updated", "success");
+          setStatus(accountEmail ? `Intel Pack library updated for ${accountEmail}. Reports go to this account's email.` : "Intel Pack library updated", "success");
           return true;
         } catch (error) {
+          if (token !== requestToken) return false;
           renderMessage("Could not load Intel Packs", error.message || "The request failed.");
           setStatus(error.message || "Unable to list Intel Packs.", "error");
           return false;

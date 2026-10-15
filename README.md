@@ -118,6 +118,16 @@ Existing databases receive this permission update too; other user permissions
 are preserved. Each account has its own Intel Pack library, so a new demo
 account starts with an empty list rather than the administrator's packs.
 
+Creating demo credentials automatically signs the dashboard in as the new
+account. Import packs after that switch: manual and scheduled runs use the
+account that owns the pack. The email tool delivers only to that authenticated
+account's email, using SMTP credentials solely as the sending relay.
+
+If a pack was previously imported while signed in as the administrator, delete
+that administrator-owned copy and import it again while signed in as the demo
+account. Creating an account does not transfer existing packs. Rebuild and
+redeploy to update the dashboard and refresh the saved email tool at startup.
+
 ## Cloud Run notes
 
 - Cloud Run supplies the `PORT` environment variable automatically; do not set
