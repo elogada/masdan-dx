@@ -55,6 +55,29 @@ that.**
 4. **Get the signal.** MASDAN-DX sends the intelligence to your inbox so it is
    ready on your phone.
 
+## Usage
+
+Once MASDAN-DX is running, you can manage your intelligence missions from two
+places:
+
+- **Intel Dashboard — `/dashboard/`:** Your home base for importing Intel
+  Packs and managing their jobs. For a local deployment, visit
+  [localhost:8080/dashboard/](http://localhost:8080/dashboard/).
+- **Intel Pack Marketplace — `/marketplace/`:** Browse available Intel Packs
+  and choose the intelligence missions that suit your needs. Locally, visit
+  [localhost:8080/marketplace/](http://localhost:8080/marketplace/).
+
+### Schedule it once, or run it now
+
+Every Intel Pack includes a **daily schedule**, so its intelligence job can run
+routinely without requiring you to start a new chat or write the same prompt
+each day.
+
+Want a report right away? Open the Intel Dashboard, select **Run Intel Pack
+Job**, and enter the **Intel Pack key** in the dialog to launch it manually.
+MASDAN-DX uses the pack's instructions to carry out its intelligence mission
+and sends the resulting report by email.
+
 ## Run MASDAN-DX locally
 
 ### Prerequisites
