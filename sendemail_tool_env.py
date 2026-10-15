@@ -2,7 +2,7 @@
 title: EmailSender Markdown Multipart Pipeline
 author: Original template code by Christopher Vaz, modified by elogada for Markdown/HTML multipart email
 date: 2026-06-25
-version: 1.1
+version: 1.2
 license: MIT
 description: A pipeline for sending AI-generated email reports using SMTP. Accepts Markdown, converts it to HTML, and sends multipart/alternative email with text/plain and text/html parts. The user's email is {{USER_EMAIL}}
 """
@@ -60,7 +60,7 @@ class Tools:
   </body>
 </html>"""
 
-    def send_email(self, subject: str, body: str, recipients: List[str]) -> str:
+    def send_email(self, subject: str, body: str, recipients: List[str], __user__: dict = None) -> str:
         """
         Send a Markdown-authored email as multipart/alternative.
 
@@ -71,9 +71,13 @@ class Tools:
 
         :param subject: The subject of the email.
         :param body: The Markdown body of the email.
-        :param recipients: The list of recipient email addresses. It should be {{USER_EMAIL}}.
+        :param recipients: Suggested recipients; delivery always uses the authenticated user's email.
         :return: The result of the email sending operation.
         """
+        recipient = (__user__ or {}).get("email", "").strip()
+        if not recipient or "@" not in recipient or "\r" in recipient or "\n" in recipient:
+            return json.dumps({"status": "error", "message": "Authenticated user email is required."})
+        recipients = [recipient]
         sender = os.environ.get("SMTP_EMAIL")
         password = os.environ.get("SMTP_PASSWORD")
 

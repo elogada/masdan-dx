@@ -131,7 +131,7 @@ fi
 unset PERMISSIONS_PAYLOAD
 
 # Idempotency: check whether the tool already exists.
-# 200 => leave it alone for this first bootstrap version.
+# 200 => refresh bundled source while preserving tool settings and access.
 # 404 => create it.
 # anything else => fail rather than guessing.
 log "Checking for Workspace Tool '${TOOL_ID}'..."
@@ -143,7 +143,24 @@ HTTP_STATUS="$(
 
 case "$HTTP_STATUS" in
     200)
-        log "Tool '${TOOL_ID}' already exists; skipping creation."
+        TOOL_PAYLOAD="$(TOOL_FILE="$TOOL_FILE" python - <<'PY'
+import json, os
+from pathlib import Path
+existing = json.loads(Path('/tmp/bootstrap-tool-check.json').read_text())
+source = Path(os.environ['TOOL_FILE']).read_text()
+if existing.get('content') != source:
+    payload = {key: existing[key] for key in ('id', 'name', 'meta', 'access_grants') if key in existing}
+    payload['content'] = source
+    print(json.dumps(payload))
+PY
+        )"
+        if [ -n "$TOOL_PAYLOAD" ]; then
+            log "Updating bundled email tool source..."
+            curl -fsS -X POST "${BASE_URL}/api/v1/tools/id/${TOOL_ID}/update" \
+                -H "Authorization: Bearer ${TOKEN}" \
+                -H 'Content-Type: application/json' \
+                --data-binary "$TOOL_PAYLOAD" >/dev/null
+        fi
         ;;
     404)
         log "Creating Workspace Tool '${TOOL_ID}'..."
@@ -199,6 +216,32 @@ PY
         die "Tool lookup failed with HTTP ${HTTP_STATUS}."
         ;;
 esac
+
+# Grant read/use access on both fresh and existing databases. Merge grants so
+# explicitly configured users/groups retain their existing permissions.
+log "Checking authenticated-user access to Workspace Tool '${TOOL_ID}'..."
+curl -fsS "${BASE_URL}/api/v1/tools/id/${TOOL_ID}" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -o /tmp/bootstrap-tool-check.json
+TOOL_ACCESS_PAYLOAD="$(python - <<'PY'
+import json
+from pathlib import Path
+
+tool = json.loads(Path('/tmp/bootstrap-tool-check.json').read_text())
+grants = tool.get('access_grants') or []
+public_read = {'principal_type': 'user', 'principal_id': '*', 'permission': 'read'}
+if not any(all(grant.get(key) == value for key, value in public_read.items()) for grant in grants):
+    print(json.dumps({'access_grants': [*grants, public_read]}))
+PY
+)"
+if [ -n "$TOOL_ACCESS_PAYLOAD" ]; then
+    log "Granting authenticated users read/use access to '${TOOL_ID}'..."
+    curl -fsS -X POST "${BASE_URL}/api/v1/tools/id/${TOOL_ID}/access/update" \
+        -H "Authorization: Bearer ${TOKEN}" \
+        -H 'Content-Type: application/json' \
+        --data-binary "$TOOL_ACCESS_PAYLOAD" >/dev/null
+fi
+unset TOOL_ACCESS_PAYLOAD
 
 ###############################################################################
 # Dani / MASDAN-DX model profile
