@@ -127,6 +127,9 @@ If a pack was previously imported while signed in as the administrator, delete
 that administrator-owned copy and import it again while signed in as the demo
 account. Creating an account does not transfer existing packs. Rebuild and
 redeploy to update the dashboard and refresh the saved email tool at startup.
+Bootstrap also grants every authenticated user read/use access to the email
+tool, including on existing databases. It preserves existing grants and adds
+no editing permission for demo accounts. Anonymous visitors receive no access.
 
 ## Cloud Run notes
 

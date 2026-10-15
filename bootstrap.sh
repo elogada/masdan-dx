@@ -217,6 +217,32 @@ PY
         ;;
 esac
 
+# Grant read/use access on both fresh and existing databases. Merge grants so
+# explicitly configured users/groups retain their existing permissions.
+log "Checking authenticated-user access to Workspace Tool '${TOOL_ID}'..."
+curl -fsS "${BASE_URL}/api/v1/tools/id/${TOOL_ID}" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -o /tmp/bootstrap-tool-check.json
+TOOL_ACCESS_PAYLOAD="$(python - <<'PY'
+import json
+from pathlib import Path
+
+tool = json.loads(Path('/tmp/bootstrap-tool-check.json').read_text())
+grants = tool.get('access_grants') or []
+public_read = {'principal_type': 'user', 'principal_id': '*', 'permission': 'read'}
+if not any(all(grant.get(key) == value for key, value in public_read.items()) for grant in grants):
+    print(json.dumps({'access_grants': [*grants, public_read]}))
+PY
+)"
+if [ -n "$TOOL_ACCESS_PAYLOAD" ]; then
+    log "Granting authenticated users read/use access to '${TOOL_ID}'..."
+    curl -fsS -X POST "${BASE_URL}/api/v1/tools/id/${TOOL_ID}/access/update" \
+        -H "Authorization: Bearer ${TOKEN}" \
+        -H 'Content-Type: application/json' \
+        --data-binary "$TOOL_ACCESS_PAYLOAD" >/dev/null
+fi
+unset TOOL_ACCESS_PAYLOAD
+
 ###############################################################################
 # Dani / MASDAN-DX model profile
 ###############################################################################
